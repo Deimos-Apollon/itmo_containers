@@ -1,0 +1,89 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: jupyterhub-service
+  labels:
+    app: jupyterhub
+    tier: hub
+spec:
+  type: NodePort
+  ports:
+   - port: 8000
+  selector:
+    app: jupyterhub
+    tier: hub
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jupyterhub-config
+data:
+  jupyterhub_config.py: |
+    import os
+
+    c.JupyterHub.ip = '0.0.0.0'
+    c.JupyterHub.port = 8000
+    c.JupyterHub.hub_connect_ip = '127.0.0.1'
+
+    c.JupyterHub.authenticator_class = 'dummyauthenticator.DummyAuthenticator'
+    c.DummyAuthenticator.password = '123'
+
+    c.JupyterHub.db_url = f'postgresql://postgres:password@postgres-service:5432/postgres'
+    
+    from subprocess import check_call
+
+
+    def pre_spawn_hook(spawner):
+        username = spawner.user.name
+        try:
+            check_call(['useradd', '-ms', '/bin/bash', username])
+        except Exception as e:
+            print(f'exception in python: {e}')
+    c.Spawner.pre_spawn_hook = pre_spawn_hook
+    c.Spawner.default_url = '/lab'
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jupyterhub
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jupyterhub
+      tier: hub
+  template:
+    metadata:
+      labels:
+        app: jupyterhub
+        tier: hub
+    spec:
+      containers:
+        - name: jupyterhub-container
+          image: jupyterhub_custom
+          imagePullPolicy: "Never"
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: postgres-configmap
+          volumeMounts:
+            - name: jupyterhub-config
+              mountPath: /etc/jupyterhub/
+          #command: ["sh", "-c", "jupyterhub upgrade-db --config /etc/jupyterhub/jupyterhub_config.py && jupyterhub --config /etc/jupyterhub/jupyterhub_config.py"]
+          command: 
+            - sh
+            - -c
+            - |
+              echo "Checking DB connection..."
+              psql -h postgres -U $POSTGRES_USER -d postgres -c "SELECT 1"
+              jupyterhub upgrade-db --config /etc/jupyterhub/jupyterhub_config.py
+              exec jupyterhub --config /etc/jupyterhub/jupyterhub_config.py
+      volumes:
+        - name: jupyterhub-config
+          configMap:
+            name: jupyterhub-config
+

@@ -1,0 +1,21 @@
+# 1. Самое очевидное - использование тега latest. Нельзя полностью доверяться новым релизам, 
+#    особенно, если они были сделаны в пятницу вечером))
+FROM jupyterhub/jupyterhub:latest
+
+# 2. Неоптимизированное использование слоёв - например, комбинация редко меняющихся и 
+#    часто меняющихся команд через &&.
+# 3. Не использование чистки кэша менеджеров пакетов. 
+#    Из-за чего размер выходного образа будет заметно выше.
+RUN apt update && apt -y install python3-dev git \
+    && pip install numpy pandas matplotlib scikit-learn
+
+WORKDIR /jupyter
+
+# 4. Копирование всех файлов и не использование .dockerignore
+COPY . .
+
+VOLUME /volume
+
+# 5. Не использование JSON формата для ENTRYPOINT/CMD. Из-за этого могут быть проблемы с обработкой
+#    сигналов ОС: https://docs.docker.com/reference/build-checks/json-args-recommended/
+ENTRYPOINT jupyterhub --log-level=DEBUG

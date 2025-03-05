@@ -1,0 +1,77 @@
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-service
+  labels:
+    app: postgres
+    tier: database
+spec:
+  type: NodePort
+  ports:
+    - port: 5432
+      targetPort: 5432
+  selector:
+    app: postgres
+    tier: database
+
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-configmap
+  labels:
+    app: postgres
+    tier: database
+data:
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: password
+  PGPASSWORD: password
+  POSTGRES_DB: postgres
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+      tier: database
+  template:
+    metadata:
+      labels:
+        app: postgres
+        tier: database
+    spec:
+      containers:
+        - name: postgres-container
+          image: postgres:14
+          imagePullPolicy: "IfNotPresent"
+          ports:
+            - containerPort: 5432
+          envFrom:
+            - configMapRef:
+                name: postgres-configmap
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+          livenessProbe:
+            exec:
+              command:
+              - pg_isready
+              - -U
+              - postgres
+            initialDelaySeconds: 30
+            periodSeconds: 10
+      initContainers:
+        - name: postgres-init
+          image: busybox
+          command: ["sh", "-c", "echo Postgres initialising; sleep 1"]
+      volumes:
+        - name: postgres-data
+          emptyDir: {}

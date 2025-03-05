@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: jupyter-postgres
+    env_file: .env
+    networks:
+      - jupyter-network
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+
+  init-db:
+    image: postgres:15
+    container_name: jupyter-init-db
+    env_file: .env
+    networks:
+      - jupyter-network
+    volumes:
+      - ./src/init.sql:/srv/init.sql
+    command: [
+      "psql",
+      "-h", "postgres",
+      "-U", "${POSTGRES_USER}",
+      "-d", "${POSTGRES_DB}",
+      "-f", "/srv/init.sql"
+    ]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  jupyterhub:
+    build: .
+    container_name: jupyterhub-container
+    env_file: .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - jupyter-data:/home/jovyan
+      - ./src/jupyterhub_config.py:/srv/jupyterhub_config.py
+    networks:
+      - jupyter-network
+    depends_on:
+      init-db:
+        condition: service_completed_successfully
+    entrypoint: ["jupyterhub", "--log-level=INFO", "-f",  "/srv/jupyterhub_config.py"]
+
+volumes:
+  postgres-data:
+  jupyter-data:
+
+networks:
+  jupyter-network:
+    driver: bridge
