@@ -32,7 +32,8 @@
 
 ## Postgres
 
-* ConfigMap
+* ConfigMap, с переменной названия БД
+* Secrets, с переменными для подключения к БД
 * Service
 * Deployment
 * init-container
@@ -42,6 +43,6 @@
 
 ## Jupyterhub
 
-* ConfigMap
+* Secrets, с начальным скриптом инициализации
 * Service
 * Deployment
