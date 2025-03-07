@@ -38,14 +38,14 @@ metadata:
   name: jupyterhub-service
   labels:
     app: jupyterhub
-    # tier: hub
+    tier: hub
 spec:
   type: NodePort
   ports:
    - port: 8000
   selector:
     app: jupyterhub
-    # tier: hub
+    tier: hub
 
 ---
 
@@ -58,12 +58,12 @@ spec:
   selector:
     matchLabels:
       app: jupyterhub
-      # tier: hub
+      tier: hub
   template:
     metadata:
       labels:
         app: jupyterhub
-        # tier: hub
+        tier: hub
     spec:
       containers:
         - name: jupyterhub-container
