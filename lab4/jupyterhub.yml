@@ -74,6 +74,8 @@ spec:
           envFrom:
             - configMapRef:
                 name: postgres-configmap
+            - secretRef:
+                name: postgres-secret
           volumeMounts:
             - name: jupyterhub-secret
               mountPath: /etc/jupyterhub/
